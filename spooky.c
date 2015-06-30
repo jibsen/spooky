@@ -289,9 +289,7 @@ static void spooky_short(const void *restrict message, size_t length,
 	case 13:
 		h[3] += ((uint64_t) u.p8[12]) << 32;
 	case 12:
-		h[3] += u.p32[2];
-		h[2] += u.p64[0];
-		break;
+		h[3] += ((uint64_t) u.p8[11]) << 24;
 	case 11:
 		h[3] += ((uint64_t) u.p8[10]) << 16;
 	case 10:
@@ -299,7 +297,7 @@ static void spooky_short(const void *restrict message, size_t length,
 	case 9:
 		h[3] += (uint64_t) u.p8[8];
 	case 8:
-		h[2] += u.p64[0];
+		h[2] += spooky_read_le64(&u.p64[0]);
 		break;
 	case 7:
 		h[2] += ((uint64_t) u.p8[6]) << 48;
@@ -308,8 +306,7 @@ static void spooky_short(const void *restrict message, size_t length,
 	case 5:
 		h[2] += ((uint64_t) u.p8[4]) << 32;
 	case 4:
-		h[2] += u.p32[0];
-		break;
+		h[2] += ((uint64_t) u.p8[3]) << 24;
 	case 3:
 		h[2] += ((uint64_t) u.p8[2]) << 16;
 	case 2:
