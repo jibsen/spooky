@@ -62,7 +62,7 @@ struct spooky_state {
 	uint64_t data[2*SC_NUMVARS]; // unhashed data, for partial messages
 	uint64_t state[SC_NUMVARS];  // internal state of the hash
 	size_t length;               // total length of the input so far
-	uint8_t remainder;           // length of unhashed data stashed in data
+	uint8_t left;                // length of unhashed data stashed in data
 };
 
 void spooky_hash128(const void *message, size_t length, uint64_t *hash1, uint64_t *hash2);

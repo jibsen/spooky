@@ -250,7 +250,7 @@ static void spooky_short(const void *restrict message, size_t length,
 		u.p64 = buf;
 	}
 
-	size_t remainder = length % 32;
+	size_t left = length % 32;
 	uint64_t h[4];
 	h[0] = *hash1;
 	h[1] = *hash2;
@@ -270,18 +270,18 @@ static void spooky_short(const void *restrict message, size_t length,
 		}
 
 		//Handle the case of 16+ remaining bytes.
-		if (remainder >= 16) {
+		if (left >= 16) {
 			h[2] += spooky_read_le64(&u.p64[0]);
 			h[3] += spooky_read_le64(&u.p64[1]);
 			spooky_short_mix(h);
 			u.p64 += 2;
-			remainder -= 16;
+			left -= 16;
 		}
 	}
 
 	// Handle the last 0..15 bytes, and its length
 	h[3] += ((uint64_t) length) << 56;
-	switch (remainder) {
+	switch (left) {
 	case 15:
 		h[3] += ((uint64_t) u.p8[14]) << 48;
 	case 14:
@@ -354,7 +354,7 @@ void spooky_hash128(const void *restrict message, size_t length,
 		uint64_t *p64;
 		size_t i;
 	} u;
-	size_t remainder;
+	size_t left;
 
 	h[0] = h[3] = h[6] = h[9] = *hash1;
 	h[1] = h[4] = h[7] = h[10] = *hash2;
@@ -379,10 +379,10 @@ void spooky_hash128(const void *restrict message, size_t length,
 	}
 
 	// handle the last partial block of SC_BLOCKSIZE bytes
-	remainder = (length - ((const uint8_t *) end - (const uint8_t *) message));
-	memcpy(buf, end, remainder);
-	memset(((uint8_t *) buf) + remainder, 0, SC_BLOCKSIZE - remainder);
-	((uint8_t *) buf)[SC_BLOCKSIZE - 1] = (uint8_t) remainder;
+	left = length - ((const uint8_t *) end - (const uint8_t *) message);
+	memcpy(buf, end, left);
+	memset(((uint8_t *) buf) + left, 0, SC_BLOCKSIZE - left);
+	((uint8_t *) buf)[SC_BLOCKSIZE - 1] = (uint8_t) left;
 
 	// do some final mixing
 	spooky_end(buf, h);
@@ -394,7 +394,7 @@ void spooky_hash128(const void *restrict message, size_t length,
 void spooky_init(struct spooky_state *state, uint64_t seed1, uint64_t seed2)
 {
 	state->length = 0;
-	state->remainder = 0;
+	state->left = 0;
 	state->state[0] = seed1;
 	state->state[1] = seed2;
 }
@@ -404,8 +404,8 @@ void spooky_update(struct spooky_state *restrict state,
                    const void *restrict message, size_t length)
 {
 	uint64_t h[SC_NUMVARS];
-	size_t newLength = length + state->remainder;
-	uint8_t remainder;
+	size_t newLength = length + state->left;
+	uint8_t left;
 	union {
 		const uint8_t *p8;
 		uint64_t *p64;
@@ -415,9 +415,9 @@ void spooky_update(struct spooky_state *restrict state,
 
 	// Is this message fragment too short?  If it is, stuff it away.
 	if (newLength < SC_BUFSIZE) {
-		memcpy(&((uint8_t *) state->data)[state->remainder], message, length);
+		memcpy(&((uint8_t *) state->data)[state->left], message, length);
 		state->length = length + state->length;
-		state->remainder = (uint8_t) newLength;
+		state->left = (uint8_t) newLength;
 		return;
 	}
 
@@ -433,9 +433,9 @@ void spooky_update(struct spooky_state *restrict state,
 	state->length = length + state->length;
 
 	// if we've got anything stuffed away, use it now
-	if (state->remainder) {
-		uint8_t prefix = SC_BUFSIZE - state->remainder;
-		memcpy(&(((uint8_t *) state->data)[state->remainder]), message, prefix);
+	if (state->left) {
+		uint8_t prefix = SC_BUFSIZE - state->left;
+		memcpy(&(((uint8_t *) state->data)[state->left]), message, prefix);
 		u.p64 = state->data;
 		spooky_mix(u.p64, h);
 		spooky_mix(&u.p64[SC_NUMVARS], h);
@@ -448,7 +448,7 @@ void spooky_update(struct spooky_state *restrict state,
 
 	// handle all whole blocks of SC_BLOCKSIZE bytes
 	end = u.p64 + (length / SC_BLOCKSIZE) * SC_NUMVARS;
-	remainder = (uint8_t) (length - ((const uint8_t *) end - u.p8));
+	left = (uint8_t) (length - ((const uint8_t *) end - u.p8));
 	if (ALLOW_UNALIGNED_READS || (u.i & 0x7) == 0) {
 		while (u.p64 < end) {
 			spooky_mix(u.p64, h);
@@ -464,8 +464,8 @@ void spooky_update(struct spooky_state *restrict state,
 	}
 
 	// stuff away the last few bytes
-	state->remainder = remainder;
-	memcpy(state->data, end, remainder);
+	state->left = left;
+	memcpy(state->data, end, left);
 
 	// stuff away the variables
 	memcpy(state->state, h, sizeof(state->state));
@@ -484,22 +484,22 @@ void spooky_final(struct spooky_state *restrict state,
 	}
 
 	const uint64_t *data = (const uint64_t *) state->data;
-	uint8_t remainder = state->remainder;
+	uint8_t left = state->left;
 
 	uint64_t h[SC_NUMVARS];
 	memcpy(h, state->state, sizeof(state->state));
 
-	if (remainder >= SC_BLOCKSIZE) {
+	if (left >= SC_BLOCKSIZE) {
 		// m_data can contain two blocks; handle any whole first block
 		spooky_mix(data, h);
 		data += SC_NUMVARS;
-		remainder -= SC_BLOCKSIZE;
+		left -= SC_BLOCKSIZE;
 	}
 
 	// mix in the last partial block, and the length mod SC_BLOCKSIZE
-	memset(&((uint8_t *) data)[remainder], 0, (SC_BLOCKSIZE - remainder));
+	memset(&((uint8_t *) data)[left], 0, (SC_BLOCKSIZE - left));
 
-	((uint8_t *) data)[SC_BLOCKSIZE - 1] = remainder;
+	((uint8_t *) data)[SC_BLOCKSIZE - 1] = left;
 
 	// do some final mixing
 	spooky_end(data, h);
