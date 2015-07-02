@@ -46,6 +46,11 @@
 # define inline __forceinline
 #endif
 
+static bool spooky_is_aligned(const void *p, size_t size)
+{
+	return (uintptr_t) p % size == 0;
+}
+
 static bool spooky_is_little_endian(void)
 {
 	const union {
@@ -239,14 +244,12 @@ static void spooky_short(const void *restrict message, size_t length,
 	uint64_t buf[2 * SC_NUMVARS];
 	union {
 		const uint8_t *p8;
-		uint32_t *p32;
 		uint64_t *p64;
-		size_t i;
 	} u;
 
 	u.p8 = (const uint8_t *) message;
 
-	if (!ALLOW_UNALIGNED_READS && (u.i & 0x7)) {
+	if (ALLOW_UNALIGNED_READS == 0 && !spooky_is_aligned(u.p8, 8)) {
 		memcpy(buf, message, length);
 		u.p64 = buf;
 	}
@@ -353,7 +356,6 @@ void spooky_hash128(const void *restrict message, size_t length,
 	union {
 		const uint8_t *p8;
 		uint64_t *p64;
-		size_t i;
 	} u;
 	size_t left;
 
@@ -365,7 +367,7 @@ void spooky_hash128(const void *restrict message, size_t length,
 	end = u.p64 + (length / SC_BLOCKSIZE) * SC_NUMVARS;
 
 	// handle all whole SC_BLOCKSIZE blocks of bytes
-	if (ALLOW_UNALIGNED_READS || ((u.i & 0x7) == 0)) {
+	if (ALLOW_UNALIGNED_READS || spooky_is_aligned(u.p8, 8)) {
 		do {
 			spooky_mix(u.p64, h);
 			u.p64 += SC_NUMVARS;
@@ -410,7 +412,6 @@ void spooky_update(struct spooky_state *restrict state,
 	union {
 		const uint8_t *p8;
 		uint64_t *p64;
-		size_t i;
 	} u;
 	const uint64_t *end;
 
@@ -450,7 +451,7 @@ void spooky_update(struct spooky_state *restrict state,
 	// handle all whole blocks of SC_BLOCKSIZE bytes
 	end = u.p64 + (length / SC_BLOCKSIZE) * SC_NUMVARS;
 	left = (uint8_t) (length - ((const uint8_t *) end - u.p8));
-	if (ALLOW_UNALIGNED_READS || (u.i & 0x7) == 0) {
+	if (ALLOW_UNALIGNED_READS || spooky_is_aligned(u.p8, 8)) {
 		while (u.p64 < end) {
 			spooky_mix(u.p64, h);
 			u.p64 += SC_NUMVARS;
