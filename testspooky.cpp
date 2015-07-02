@@ -163,7 +163,7 @@ void TestResults()
     uint32_t saw[BUFSIZE];
     for (int i=0; i<BUFSIZE; ++i)
     {
-        buf[i] = i+128;
+        buf[i] = (uint8_t)(i+128);
         saw[i] = spooky_hash32(buf, i, 0);
         if (saw[i] != expected[i])
         {
@@ -271,12 +271,12 @@ void TestAlignment()
     {
         for (int j=0; j<8; ++j)
         {
-            buf[j] = (char)i+j;
+            buf[j] = (char)(i+j);
             for (int k=1; k<=i; ++k)
             {
-                buf[j+k] = k;
+                buf[j+k] = (char)k;
             }
-            buf[j+i+1] = (char)i+j;
+            buf[j+i+1] = (char)(i+j);
             hash[j] = spooky_hash64((const void *)(buf+j+1), i, 0);
         }
         for (int j=1; j<8; ++j)
@@ -383,7 +383,7 @@ void TestPieces()
     char buf[BUFSIZE];
     for (int i=0; i<BUFSIZE; ++i)
     {
-        buf[i] = i;
+        buf[i] = (char)i;
     }
     for (int i=0; i<BUFSIZE; ++i)
     {
