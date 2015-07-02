@@ -365,17 +365,17 @@ void spooky_hash128(const void *restrict message, size_t length,
 
 	// handle all whole SC_BLOCKSIZE blocks of bytes
 	if (ALLOW_UNALIGNED_READS || ((u.i & 0x7) == 0)) {
-		while (u.p64 < end) {
+		do {
 			spooky_mix(u.p64, h);
 			u.p64 += SC_NUMVARS;
-		}
+		} while (u.p64 < end);
 	}
 	else {
-		while (u.p64 < end) {
+		do {
 			memcpy(buf, u.p64, SC_BLOCKSIZE);
 			spooky_mix(buf, h);
 			u.p64 += SC_NUMVARS;
-		}
+		} while (u.p64 < end);
 	}
 
 	// handle the last partial block of SC_BLOCKSIZE bytes
