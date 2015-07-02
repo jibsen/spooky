@@ -48,8 +48,8 @@
 static int spooky_is_little_endian(void)
 {
 	const union {
-		int i;
-		char c[sizeof(int)];
+		uint32_t i;
+		uint8_t c[sizeof(uint32_t)];
 	} x = { 1 };
 
 	return x.c[0];
