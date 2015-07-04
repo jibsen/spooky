@@ -27,8 +27,8 @@ uint64_t get_ticks(void)
 uint64_t get_ticks(void)
 {
     struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (uint64_t)ts.tv_nsec / 1000000 + ts.tv_sec * 1000;
+    int res = clock_gettime(CLOCK_MONOTONIC, &ts);
+    return res ? (uint64_t)-1 : (uint64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
 }
 
 #endif // _WIN32
