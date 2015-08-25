@@ -37,7 +37,7 @@
 //  - is a not-very-regular mix of 1's and 0's
 //  - does not need any other special mathematical properties
 //
-#define SC_CONST 0xdeadbeefdeadbeefULL
+#define SC_CONST 0xDEADBEEFDEADBEEFULL
 
 #define ROTL64(x, k) (((x) << (k)) | ((x) >> (64 - (k))))
 
@@ -46,12 +46,14 @@
 # define inline __forceinline
 #endif
 
-static bool spooky_is_aligned(const void *p, size_t size)
+static bool
+spooky_is_aligned(const void *p, size_t size)
 {
 	return (uintptr_t) p % size == 0;
 }
 
-static bool spooky_is_little_endian(void)
+static bool
+spooky_is_little_endian(void)
 {
 	const union {
 		uint32_t i;
@@ -64,7 +66,8 @@ static bool spooky_is_little_endian(void)
 //
 // Read uint64_t in little-endian order.
 //
-static inline uint64_t spooky_read_le64(const uint64_t *s)
+static inline uint64_t
+spooky_read_le64(const uint64_t *s)
 {
 	if (spooky_is_little_endian()) {
 		uint64_t v;
@@ -97,7 +100,8 @@ static inline uint64_t spooky_read_le64(const uint64_t *s)
 //   When run forward or backwards one Mix
 // I tried 3 pairs of each; they all differed by at least 212 bits.
 //
-static inline void spooky_mix(const uint64_t *restrict data, uint64_t *restrict s)
+static inline void
+spooky_mix(const uint64_t *restrict data, uint64_t *restrict s)
 {
 	s[0] += spooky_read_le64(&data[0]);          s[2] ^= s[10];
 	s[11] ^= s[0];   s[0] = ROTL64(s[0], 11);    s[11] += s[1];
@@ -141,7 +145,8 @@ static inline void spooky_mix(const uint64_t *restrict data, uint64_t *restrict 
 // Two iterations was almost good enough for a 64-bit result, but a
 // 128-bit result is reported, so End() does three iterations.
 //
-static inline void spooky_end_partial(uint64_t *h)
+static inline void
+spooky_end_partial(uint64_t *h)
 {
 	h[11] += h[1];  h[2] ^= h[11];  h[1] = ROTL64(h[1], 44);
 	h[0] += h[2];   h[3] ^= h[0];   h[2] = ROTL64(h[2], 15);
@@ -157,7 +162,8 @@ static inline void spooky_end_partial(uint64_t *h)
 	h[10] += h[0];  h[1] ^= h[10];  h[0] = ROTL64(h[0], 54);
 }
 
-static inline void spooky_end(const uint64_t *restrict data, uint64_t *restrict h)
+static inline void
+spooky_end(const uint64_t *restrict data, uint64_t *restrict h)
 {
 	h[0] += spooky_read_le64(&data[0]);
 	h[1] += spooky_read_le64(&data[1]);
@@ -191,7 +197,8 @@ static inline void spooky_end(const uint64_t *restrict data, uint64_t *restrict 
 // with diffs defined by either xor or subtraction
 // with a base of all zeros plus a counter, or plus another bit, or random
 //
-static inline void spooky_short_mix(uint64_t *h)
+static inline void
+spooky_short_mix(uint64_t *h)
 {
 	h[2] = ROTL64(h[2], 50);  h[2] += h[3];  h[0] ^= h[2];
 	h[3] = ROTL64(h[3], 52);  h[3] += h[0];  h[1] ^= h[3];
@@ -219,7 +226,8 @@ static inline void spooky_short_mix(uint64_t *h)
 // For every pair of input bits,
 // with probability 50 +- .75% (the worst case is approximately that)
 //
-static inline void spooky_short_end(uint64_t *h)
+static inline void
+spooky_short_end(uint64_t *h)
 {
 	h[3] ^= h[2];  h[2] = ROTL64(h[2], 15);  h[3] += h[2];
 	h[0] ^= h[3];  h[3] = ROTL64(h[3], 52);  h[0] += h[3];
@@ -238,8 +246,9 @@ static inline void spooky_short_end(uint64_t *h)
 // short hash ... it could be used on any message,
 // but it's used by Spooky just for short messages.
 //
-static void spooky_short(const void *restrict message, size_t length,
-                         uint64_t *restrict hash1, uint64_t *restrict hash2)
+static void
+spooky_short(const void *restrict message, size_t length,
+             uint64_t *restrict hash1, uint64_t *restrict hash2)
 {
 	uint64_t buf[2 * SC_NUMVARS];
 	union {
@@ -327,14 +336,16 @@ static void spooky_short(const void *restrict message, size_t length,
 	*hash2 = h[1];
 }
 
-uint64_t spooky_hash64(const void *message, size_t length, uint64_t seed)
+uint64_t
+spooky_hash64(const void *message, size_t length, uint64_t seed)
 {
 	uint64_t hash1 = seed;
 	spooky_hash128(message, length, &hash1, &seed);
 	return hash1;
 }
 
-uint32_t spooky_hash32(const void *message, size_t length, uint32_t seed)
+uint32_t
+spooky_hash32(const void *message, size_t length, uint32_t seed)
 {
 	uint64_t hash1 = seed, hash2 = seed;
 	spooky_hash128(message, length, &hash1, &hash2);
@@ -342,8 +353,9 @@ uint32_t spooky_hash32(const void *message, size_t length, uint32_t seed)
 }
 
 // do the whole hash in one call
-void spooky_hash128(const void *restrict message, size_t length,
-                    uint64_t *restrict hash1, uint64_t *restrict hash2)
+void
+spooky_hash128(const void *restrict message, size_t length,
+               uint64_t *restrict hash1, uint64_t *restrict hash2)
 {
 	if (length < SC_BUFSIZE) {
 		spooky_short(message, length, hash1, hash2);
@@ -394,7 +406,8 @@ void spooky_hash128(const void *restrict message, size_t length,
 }
 
 // init spooky state
-void spooky_init(struct spooky_state *state, uint64_t seed1, uint64_t seed2)
+void
+spooky_init(struct spooky_state *state, uint64_t seed1, uint64_t seed2)
 {
 	state->length = 0;
 	state->left = 0;
@@ -403,8 +416,9 @@ void spooky_init(struct spooky_state *state, uint64_t seed1, uint64_t seed2)
 }
 
 // add a message fragment to the state
-void spooky_update(struct spooky_state *restrict state,
-                   const void *restrict message, size_t length)
+void
+spooky_update(struct spooky_state *restrict state,
+              const void *restrict message, size_t length)
 {
 	uint64_t h[SC_NUMVARS];
 	size_t newLength = length + state->left;
@@ -474,8 +488,9 @@ void spooky_update(struct spooky_state *restrict state,
 }
 
 // report the hash for the concatenation of all message fragments so far
-void spooky_final(struct spooky_state *restrict state,
-                  uint64_t *restrict hash1, uint64_t *restrict hash2)
+void
+spooky_final(struct spooky_state *restrict state,
+             uint64_t *restrict hash1, uint64_t *restrict hash2)
 {
 	// init the variables
 	if (state->length < SC_BUFSIZE) {
